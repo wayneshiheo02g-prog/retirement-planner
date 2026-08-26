@@ -401,7 +401,7 @@ for idx, p_name in enumerate(profiles_to_calc):
           "勞退新制開始提領年齡 (法定≥60歲)",
           f"{p_name}_lp_claim",
           60,
-          75,
+          100,
           p.get("labor_pension_claim_age", 60),
       )
       p["labor_ins_claim_age"] = dual_input(
@@ -435,16 +435,16 @@ for idx, p_name in enumerate(profiles_to_calc):
           f"{p_name}_lp_bal",
           0,
           20000000,
-          p.get("labor_pension_balance", 809477),
+          p.get("labor_pension_balance", 500000),
           step=10000,
       )
       p["labor_pension_rate"] = dual_input(
           "勞退提撥率 (雇主+自提 %)",
           f"{p_name}_lp_rate",
-          6.0,
-          12.0,
-          p.get("labor_pension_rate", 12.0),
-          step=1.0,
+          6,
+          12,
+          p.get("labor_pension_rate", 12),
+          step=1,
       )
       p["labor_pension_return"] = dual_input(
           "提領前：勞退基金預估年報酬率 (%)",
@@ -452,7 +452,7 @@ for idx, p_name in enumerate(profiles_to_calc):
           0.0,
           15.0,
           p.get("labor_pension_return", 7.64),
-          step=0.01,
+          step=0.1,
           format_fmt="%.2f",
       )
       p["labor_pension_reinvest_return"] = dual_input(
@@ -471,15 +471,15 @@ for idx, p_name in enumerate(profiles_to_calc):
           "股票目前累計金額 (元)",
           f"{p_name}_stk_bal",
           0,
-          50000000,
-          p.get("stock_balance", 5000000),
+          100000000,
+          p.get("stock_balance", 4000000),
           step=50000,
       )
       p["stock_monthly"] = dual_input(
           "股票每月投入金額 (元)",
           f"{p_name}_stk_m",
           0,
-          300000,
+          1000000,
           p.get("stock_monthly", 45000),
           step=1000,
       )
@@ -498,7 +498,7 @@ for idx, p_name in enumerate(profiles_to_calc):
           "備用金目前累計金額 (元)",
           f"{p_name}_csh_bal",
           0,
-          20000000,
+          100000000,
           p.get("cash_balance", 2000000),
           step=50000,
       )
@@ -506,7 +506,7 @@ for idx, p_name in enumerate(profiles_to_calc):
           "備用金每月投入金額 (元)",
           f"{p_name}_csh_m",
           0,
-          100000,
+          1000000,
           p.get("cash_monthly", 12000),
           step=1000,
       )
@@ -540,7 +540,7 @@ for idx, p_name in enumerate(profiles_to_calc):
           "退休後預估每月生活費 (元)",
           f"{p_name}_exp",
           10000,
-          300000,
+          1000000,
           p.get("post_retire_expense", 50000),
           step=2000,
       )
