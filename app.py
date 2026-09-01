@@ -599,7 +599,7 @@ st.markdown(
 st.sidebar.header("⚙️ 模式與設定")
 app_mode = st.sidebar.radio(
     "選擇使用模式",
-    ["簡易模式 (快速評估)", "專業模式 (精準計算)"],
+    ["引導模式 (自動規劃)", "審視模式 (精確計算)"],
 )
 calc_mode = st.sidebar.radio(
     "選擇規劃人數", ["個人獨立規劃", "夫妻共同規劃"]
@@ -793,7 +793,7 @@ profiles_to_calc = (
 # ==========================================
 # 模式 A：簡易模式
 # ==========================================
-if app_mode == "簡易模式 (快速評估)":
+if app_mode == "引導模式 (自動規劃)":
   st.markdown("### 簡易退休目標診斷")
 
   profile_choice = st.radio(
@@ -926,7 +926,7 @@ if app_mode == "簡易模式 (快速評估)":
     col_p1, col_p2, col_p3 = st.columns(3)
     with col_p1:
       stock_ratio_pct = st.slider(
-          "每月投入【投資部位】比例 (%)",
+          "每月投資部位分配比例 (%)",
           min_value=0,
           max_value=100,
           value=safe_int(p.get("stock_ratio_pct", DEFAULT_STOCK_RATIO)),
@@ -935,7 +935,7 @@ if app_mode == "簡易模式 (快速評估)":
       )
       p["stock_ratio_pct"] = stock_ratio_pct
       cash_ratio_pct = 100 - stock_ratio_pct
-      st.caption(f"💡 預備金/現金配置比例自動設為：**{cash_ratio_pct}%**")
+      st.caption(f"💡 每月現金部位分配比例自動設為：**{cash_ratio_pct}%**")
 
       p["salary_growth_rate"] = st.number_input(
           "預估薪資每年成長率 (%)",
@@ -1072,8 +1072,8 @@ if app_mode == "簡易模式 (快速評估)":
   m2.metric(
       "退休後預估勞保年金/月", f"${res['estimated_labor_ins_monthly']:,.0f}"
   )
-  m3.metric("建議每月投入【股票】", f"${res['monthly_stock_required']:,.0f}")
-  m4.metric("建議每月投入【預備金】", f"${res['monthly_cash_required']:,.0f}")
+  m3.metric("建議每月投入【投資部位】", f"${res['monthly_stock_required']:,.0f}")
+  m4.metric("建議每月投入【現金部位】", f"${res['monthly_cash_required']:,.0f}")
 
   if diff >= 0:
     m5.metric("💡 可增加每月花費金額", f"${diff:,.0f}", delta=f"+${diff:,.0f}")
@@ -1172,7 +1172,7 @@ else:
       r_col1, r_col2 = st.columns(2)
       with r_col1:
         p_target["stock_return"] = dual_input(
-            "股票預估年報酬率 (%)",
+            "投資預估年報酬率 (%)",
             f"{p_name}_ret_stock",
             0.0,
             30.0,
@@ -1255,7 +1255,7 @@ else:
       with col_c2:
         st.markdown("#### 2. 每月投資與生活支出預算")
         p["stock_monthly"] = dual_input(
-            "每月定期定額買股票/基金 (元)",
+            "每月定額投資金額 (元)",
             f"{p_name}_stk_m",
             0,
             1000000,
@@ -1303,7 +1303,7 @@ else:
               step=10000,
           )
           p["stock_balance"] = dual_input(
-              "目前股票/基金總價值 (元)",
+              "目前投資部位總額 (元)",
               f"{p_name}_stk_bal",
               0,
               100000000,
