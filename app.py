@@ -303,6 +303,7 @@ def run_initial_simulation(p):
 
   records = []
   cur_salary = safe_float(p.get("insured_salary", 50000))
+  cur_bonus = safe_float(p.get("annual_bonus", 0))  # 💡 取得預估每年獎金/年終總額
   salary_growth = safe_float(p.get("salary_growth_rate", 1.0)) / 100.0
 
   for age in range(current_age, end_age + 1):
@@ -311,6 +312,7 @@ def run_initial_simulation(p):
 
     if is_working and age > current_age:
       cur_salary *= 1 + salary_growth
+      cur_bonus *= 1 + salary_growth  # 💡 獎金跟隨薪資成長率同步調升
 
     cur_level = get_labor_pension_level(cur_salary)
 
@@ -318,6 +320,7 @@ def run_initial_simulation(p):
       pension_rate = safe_float(p.get("labor_pension_rate", 12.0))
       stock_m = safe_float(p.get("stock_monthly", 0))
       cash_m = safe_float(p.get("cash_monthly", 0))
+      annual_bonus_val = cur_bonus  # 💡 工作期間每年注入獎金
       expense = 0.0
       extra_exp = safe_float(p.get("pre_retire_annual_expense", 120000))
       extra_note = "退休前年度享樂/旅遊開銷"
@@ -325,6 +328,7 @@ def run_initial_simulation(p):
       pension_rate = 0.0
       stock_m = 0.0
       cash_m = 0.0
+      annual_bonus_val = 0.0  # 退休後無獎金收入
       expense = safe_float(p.get("post_retire_expense", 60000))
       extra_exp = 0.0
       extra_note = ""
@@ -357,6 +361,9 @@ def run_initial_simulation(p):
         "備用金每月投入(含年金併入)": round(
             cash_m + labor_ins_annuity_monthly
         ),
+        "年度獎金/年終注入 (元)": round(
+            annual_bonus_val
+        ),  # 💡 新增此欄位記錄年度獎金
         "備用金報酬率(%)": safe_float(p.get("cash_return", 1.8)),
         "退休月生活費": expense,
         "當頁額外大額支出 (元)": extra_exp,
@@ -386,6 +393,7 @@ def recalculate_dataframe(df, p):
     stock_m = safe_float(row["股票每月投入"])
     stock_ret = safe_float(row["當期股票報酬率(%)"])
     cash_m = safe_float(row["備用金每月投入(含年金併入)"])
+    annual_bonus_val = safe_float(row.get("年度獎金/年終注入 (元)", 0))  # 💡 讀取年終獎金
     cash_ret = safe_float(row["備用金報酬率(%)"])
     monthly_expense = safe_float(row["退休月生活費"])
     extra_expense = safe_float(row.get("當頁額外大額支出 (元)", 0))
@@ -394,7 +402,7 @@ def recalculate_dataframe(df, p):
     pension_contrib = level * (pension_rate / 100.0) * 12
     cur_pension = (cur_pension + pension_contrib) * (1 + pension_ret / 100.0)
     cur_stock = (cur_stock + stock_m * 12) * (1 + stock_ret / 100.0)
-    cur_cash = (cur_cash + cash_m * 12) * (1 + cash_ret / 100.0)
+    cur_cash = (cur_cash + cash_m * 12 + annual_bonus_val) * (1 + cash_ret / 100.0)  # 💡 注入年終獎金
 
     # 2. 支出扣抵（依優先順序）
     tot_annual_draw = (monthly_expense * 12) + extra_expense
@@ -794,7 +802,7 @@ profiles_to_calc = (
 # 模式 A：簡易模式
 # ==========================================
 if app_mode == "引導模式 (自動規劃)":
-  st.markdown("### 簡易退休目標診斷")
+  st.markdown("### 簡易退休目標診斷與規劃")
 
   profile_choice = st.radio(
       "選擇要評估的身份：",
@@ -1504,79 +1512,132 @@ st.markdown("---")
 with st.expander(
     "📑 點此展開/隱藏【逐年詳細數據表格與匯出】", expanded=False
 ):
+  # 💡 1. 在夫妻模式下，選單自動動態加入「夫+妻 合併」選項
+  detail_options = list(profiles_to_calc)
+  if len(profiles_to_calc) > 1:
+    detail_options.append("夫+妻 合併")
+
   selected_detail_profile = st.selectbox(
-      "選擇欲檢視/編輯的明细對象", profiles_to_calc
-  )
-  working_key = f"df_{selected_detail_profile}"
-  profile_obj = st.session_state["user_profiles"][selected_detail_profile]
-
-  def on_table_edited():
-    editor_key = f"editor_{selected_detail_profile}"
-    if (
-        editor_key in st.session_state
-        and "edited_rows" in st.session_state[editor_key]
-    ):
-      changes_dict = st.session_state[editor_key]["edited_rows"]
-      if changes_dict:
-        curr_df = st.session_state[working_key].copy()
-        for r_idx_str, row_changes in changes_dict.items():
-          r_idx = int(r_idx_str)
-          for col_name, new_val in row_changes.items():
-            # 寫回 Data Frame 前實施 Safe cast 確保防禦型轉型
-            curr_df.at[r_idx, col_name] = (
-                safe_float(new_val)
-                if isinstance(curr_df.at[r_idx, col_name], (int, float))
-                else new_val
-            )
-        st.session_state[working_key] = recalculate_dataframe(
-            curr_df, profile_obj
-        )
-
-  edited_df = st.data_editor(
-      st.session_state[working_key],
-      num_rows="fixed",
-      use_container_width=True,
-      disabled=["累計勞退金額", "累計股票金額", "累計備用金", "累計總資產"],
-      column_config={
-          "投保級距": st.column_config.NumberColumn(
-              "投保級距", format="$%d"
-          ),
-          "股票每月投入": st.column_config.NumberColumn(
-              "股票每月投入", format="$%d"
-          ),
-          "備用金每月投入(含年金併入)": st.column_config.NumberColumn(
-              "備用金每月投入", format="$%d"
-          ),
-          "退休月生活費": st.column_config.NumberColumn(
-              "退休月生活費", format="$%d"
-          ),
-          "當頁額外大額支出 (元)": st.column_config.NumberColumn(
-              "當頁額外大額支出 (元)", format="$%d"
-          ),
-          "大額支出備註/用途": st.column_config.TextColumn(
-              "大額支出備註/用途"
-          ),
-          "累計勞退金額": st.column_config.NumberColumn(
-              "累計勞退金額", format="$%d"
-          ),
-          "累計股票金額": st.column_config.NumberColumn(
-              "累計股票金額", format="$%d"
-          ),
-          "累計備用金": st.column_config.NumberColumn(
-              "累計備用金", format="$%d"
-          ),
-          "累計總資產": st.column_config.NumberColumn(
-              "累計總資產", format="$%d"
-          ),
-      },
-      key=f"editor_{selected_detail_profile}",
-      on_change=on_table_edited,
+      "選擇欲檢視/編輯的明細對象", detail_options
   )
 
-  csv_data = edited_df.to_csv(index=False).encode("utf-8-sig")
-  st.download_button(
-      label="📥 下載此對象之逐年明细 CSV 表格",
-      data=csv_data,
-      file_name=f"{selected_detail_profile}_退休規劃明細.csv",
-      mime="text/csv",
-  )
+  # 💡 2. 處理「夫+妻 合併」檢視邏輯
+  if selected_detail_profile == "夫+妻 合併":
+    df1 = sim_results[profiles_to_calc[0]].copy()
+    df2 = sim_results[profiles_to_calc[1]].copy()
+
+    # 建立合併後的 Dataframe
+    display_df = df1[["年齡", "狀態"]].copy()
+    display_df["投保級距(雙人合計)"] = df1["投保級距"] + df2["投保級距"]
+    display_df["股票每月投入"] = (
+        df1["股票每月投入"] + df2["股票每月投入"]
+    )
+    display_df["備用金每月投入(含年金併入)"] = (
+        df1["備用金每月投入(含年金併入)"]
+        + df2["備用金每月投入(含年金併入)"]
+    )
+    display_df["年度獎金/年終注入 (元)"] = (
+        df1.get("年度獎金/年終注入 (元)", 0)
+        + df2.get("年度獎金/年終注入 (元)", 0)
+    )
+    display_df["退休月生活費"] = (
+        df1["退休月生活費"] + df2["退休月生活費"]
+    )
+    display_df["當頁額外大額支出 (元)"] = (
+        df1["當頁額外大額支出 (元)"]
+        + df2["當頁額外大額支出 (元)"]
+    )
+    display_df["大額支出備註/用途"] = df1["大額支出備註/用途"]
+
+    # 資產類別加總
+    display_df["累計勞退金額"] = (
+        df1["累計勞退金額"] + df2["累計勞退金額"]
+    )
+    display_df["累計股票金額"] = (
+        df1["累計股票金額"] + df2["累計股票金額"]
+    )
+    display_df["累計備用金"] = df1["累計備用金"] + df2["累計備用金"]
+    display_df["累計總資產"] = df1["累計總資產"] + df2["累計總資產"]
+
+    st.info("💡 **提示**：目前顯示為【家庭合併數據】唯讀模式。如需修改細項金額，請切換至「夫」或「妻」個人選單進行編輯。")
+
+    st.dataframe(
+        display_df,
+        use_container_width=True,
+        column_config={
+            "投保級距(雙人合計)": st.column_config.NumberColumn(format="$%d"),
+            "股票每月投入": st.column_config.NumberColumn(format="$%d"),
+            "備用金每月投入(含年金併入)": st.column_config.NumberColumn(format="$%d"),
+            "年度獎金/年終注入 (元)": st.column_config.NumberColumn(format="$%d"),
+            "退休月生活費": st.column_config.NumberColumn(format="$%d"),
+            "當頁額外大額支出 (元)": st.column_config.NumberColumn(format="$%d"),
+            "累計勞退金額": st.column_config.NumberColumn(format="$%d"),
+            "累計股票金額": st.column_config.NumberColumn(format="$%d"),
+            "累計備用金": st.column_config.NumberColumn(format="$%d"),
+            "累計總資產": st.column_config.NumberColumn(format="$%d"),
+        },
+    )
+
+    csv_data = display_df.to_csv(index=False).encode("utf-8-sig")
+    st.download_button(
+        label="📥 下載家庭合併逐年明細 CSV 表格",
+        data=csv_data,
+        file_name="家庭合併_退休規劃明細.csv",
+        mime="text/csv",
+    )
+
+  # 💡 3. 單人（夫 或 妻 或 個人）互動編輯邏輯
+  else:
+    working_key = f"df_{selected_detail_profile}"
+    profile_obj = st.session_state["user_profiles"][selected_detail_profile]
+
+    def on_table_edited():
+      editor_key = f"editor_{selected_detail_profile}"
+      if (
+          editor_key in st.session_state
+          and "edited_rows" in st.session_state[editor_key]
+      ):
+        changes_dict = st.session_state[editor_key]["edited_rows"]
+        if changes_dict:
+          curr_df = st.session_state[working_key].copy()
+          for r_idx_str, row_changes in changes_dict.items():
+            r_idx = int(r_idx_str)
+            for col_name, new_val in row_changes.items():
+              curr_df.at[r_idx, col_name] = (
+                  safe_float(new_val)
+                  if isinstance(curr_df.at[r_idx, col_name], (int, float))
+                  else new_val
+              )
+          st.session_state[working_key] = recalculate_dataframe(
+              curr_df, profile_obj
+          )
+
+    edited_df = st.data_editor(
+        st.session_state[working_key],
+        num_rows="fixed",
+        use_container_width=True,
+        disabled=["累計勞退金額", "累計股票金額", "累計備用金", "累計總資產"],
+        column_config={
+            "投保級距": st.column_config.NumberColumn("投保級距", format="$%d"),
+            "股票每月投入": st.column_config.NumberColumn("股票每月投入", format="$%d"),
+            "備用金每月投入(含年金併入)": st.column_config.NumberColumn("備用金每月投入", format="$%d"),
+            "年度獎金/年終注入 (元)": st.column_config.NumberColumn("年度獎金/年終注入 (元)", format="$%d"),
+            "退休月生活費": st.column_config.NumberColumn("退休月生活費", format="$%d"),
+            "當頁額外大額支出 (元)": st.column_config.NumberColumn("當頁額外大額支出 (元)", format="$%d"),
+            "大額支出備註/用途": st.column_config.TextColumn("大額支出備註/用途"),
+            "累計勞退金額": st.column_config.NumberColumn("累計勞退金額", format="$%d"),
+            "累計股票金額": st.column_config.NumberColumn("累計股票金額", format="$%d"),
+            "累計備用金": st.column_config.NumberColumn("累計備用金", format="$%d"),
+            "累計總資產": st.column_config.NumberColumn("累計總資產", format="$%d"),
+        },
+        key=f"editor_{selected_detail_profile}",
+        on_change=on_table_edited,
+    )
+
+    csv_data = edited_df.to_csv(index=False).encode("utf-8-sig")
+    st.download_button(
+        label=f"📥 下載 {selected_detail_profile} 之逐年明細 CSV 表格",
+        data=csv_data,
+        file_name=f"{selected_detail_profile}_退休規劃明細.csv",
+        mime="text/csv",
+    )
