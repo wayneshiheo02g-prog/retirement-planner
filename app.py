@@ -366,7 +366,7 @@ def run_initial_simulation(p):
         ),  # 💡 新增此欄位記錄年度獎金
         "備用金報酬率(%)": safe_float(p.get("cash_return", 1.8)),
         "退休月生活費": expense,
-        "當頁額外大額支出 (元)": extra_exp,
+        "當年額外大額支出 (元)": extra_exp,
         "大額支出備註/用途": extra_note,
         "累計勞退金額": 0,
         "累計股票金額": 0,
@@ -396,7 +396,7 @@ def recalculate_dataframe(df, p):
     annual_bonus_val = safe_float(row.get("年度獎金/年終注入 (元)", 0))  # 💡 讀取年終獎金
     cash_ret = safe_float(row["備用金報酬率(%)"])
     monthly_expense = safe_float(row["退休月生活費"])
-    extra_expense = safe_float(row.get("當頁額外大額支出 (元)", 0))
+    extra_expense = safe_float(row.get("當年額外大額支出 (元)", 0))
 
     # 1. 投入與利息滾存
     pension_contrib = level * (pension_rate / 100.0) * 12
@@ -1543,9 +1543,9 @@ with st.expander(
     display_df["退休月生活費"] = (
         df1["退休月生活費"] + df2["退休月生活費"]
     )
-    display_df["當頁額外大額支出 (元)"] = (
-        df1["當頁額外大額支出 (元)"]
-        + df2["當頁額外大額支出 (元)"]
+    display_df["當年額外大額支出 (元)"] = (
+        df1["當年額外大額支出 (元)"]
+        + df2["當年額外大額支出 (元)"]
     )
     display_df["大額支出備註/用途"] = df1["大額支出備註/用途"]
 
@@ -1570,7 +1570,7 @@ with st.expander(
             "備用金每月投入(含年金併入)": st.column_config.NumberColumn(format="$%d"),
             "年度獎金/年終注入 (元)": st.column_config.NumberColumn(format="$%d"),
             "退休月生活費": st.column_config.NumberColumn(format="$%d"),
-            "當頁額外大額支出 (元)": st.column_config.NumberColumn(format="$%d"),
+            "當年額外大額支出 (元)": st.column_config.NumberColumn(format="$%d"),
             "累計勞退金額": st.column_config.NumberColumn(format="$%d"),
             "累計股票金額": st.column_config.NumberColumn(format="$%d"),
             "累計備用金": st.column_config.NumberColumn(format="$%d"),
@@ -1623,7 +1623,7 @@ with st.expander(
             "備用金每月投入(含年金併入)": st.column_config.NumberColumn("備用金每月投入", format="$%d"),
             "年度獎金/年終注入 (元)": st.column_config.NumberColumn("年度獎金/年終注入 (元)", format="$%d"),
             "退休月生活費": st.column_config.NumberColumn("退休月生活費", format="$%d"),
-            "當頁額外大額支出 (元)": st.column_config.NumberColumn("當頁額外大額支出 (元)", format="$%d"),
+            "當年額外大額支出 (元)": st.column_config.NumberColumn("當年額外大額支出 (元)", format="$%d"),
             "大額支出備註/用途": st.column_config.TextColumn("大額支出備註/用途"),
             "累計勞退金額": st.column_config.NumberColumn("累計勞退金額", format="$%d"),
             "累計股票金額": st.column_config.NumberColumn("累計股票金額", format="$%d"),
